@@ -45,7 +45,8 @@ func main() {
 	siteinfo := &siteinfo.Siteinfo{ProjectID: *flagProject}
 	auth := &junos.AuthMethod{
 		Username:   "root",
-		PrivateKey: "/home/roberto/.ssh/id_rsa_plain",
+		PrivateKey: *flagPrivateKey,
+		Passphrase: *flagPassphrase,
 	}
 	c := client.New(auth)
 
