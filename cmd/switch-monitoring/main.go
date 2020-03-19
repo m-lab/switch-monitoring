@@ -10,7 +10,7 @@ import (
 
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/rtx"
-	"github.com/m-lab/switch-monitoring/client"
+	"github.com/m-lab/switch-monitoring/netconf"
 	"github.com/m-lab/switch-monitoring/siteinfo"
 )
 
@@ -43,17 +43,17 @@ func main() {
 	}
 
 	// Initialize Siteinfo provider and the NETCONF client.
-	siteinfo := &siteinfo.Siteinfo{ProjectID: *flagProject}
+	s := &siteinfo.Siteinfo{ProjectID: *flagProject}
 	auth := &junos.AuthMethod{
 		Username:   "root",
 		PrivateKey: *flagPrivateKey,
 		Passphrase: *flagPassphrase,
 	}
-	c := client.New(auth)
+	c := netconf.New(auth)
 
 	// Get switches list.
 	log.Infof("Fetching switch list for project %s", *flagProject)
-	_, err := siteinfo.Switches()
+	_, err := s.Switches()
 	rtx.Must(err, "Cannot fetch the switch list")
 
 	// TODO: loop over the switches list.
