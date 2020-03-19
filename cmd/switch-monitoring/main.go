@@ -10,8 +10,8 @@ import (
 
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/rtx"
-	"github.com/m-lab/switch-monitoring/cmd/switch-monitoring/client"
-	"github.com/m-lab/switch-monitoring/cmd/switch-monitoring/siteinfo"
+	"github.com/m-lab/switch-monitoring/client"
+	"github.com/m-lab/switch-monitoring/siteinfo"
 )
 
 const defaultProjectID = "mlab-oti"
