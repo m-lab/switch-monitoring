@@ -27,12 +27,13 @@ var (
 )
 
 func main() {
+	flag.Parse()
+
 	if *flagDebug {
 		log.SetLevel(log.DebugLevel)
 	}
 	log.SetHandler(text.New(os.Stdout))
 
-	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Cannot parse env args")
 
 	// A private key must be provided.
