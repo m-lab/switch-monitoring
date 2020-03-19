@@ -1,4 +1,4 @@
-package client
+package netconf
 
 import (
 	"crypto/sha256"
@@ -9,20 +9,15 @@ import (
 	"github.com/scottdware/go-junos"
 )
 
-// Client is a client to get the switch configuration.
-type Client interface {
-	GetConfigHash() string
-}
-
-// NetconfClient is a client to get the switch configuration using the
+// Client is a client to get the switch configuration using the
 // NETCONF protocol.
-type NetconfClient struct {
+type Client struct {
 	auth *junos.AuthMethod
 }
 
 // New returns a new NetconfClient.
-func New(auth *junos.AuthMethod) NetconfClient {
-	return NetconfClient{
+func New(auth *junos.AuthMethod) Client {
+	return Client{
 		auth: auth,
 	}
 }
@@ -34,7 +29,7 @@ func New(auth *junos.AuthMethod) NetconfClient {
 //
 // The section can be an empty string. In that case, the whole configuration
 // will be read.
-func (c NetconfClient) GetConfigHash(hostname string, section ...string) (string, error) {
+func (c Client) GetConfigHash(hostname string, section ...string) (string, error) {
 	jnpr, err := junos.NewSession(hostname, c.auth)
 	if err != nil {
 		return "", err
