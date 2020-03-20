@@ -77,7 +77,7 @@ func main() {
 
 	// TODO: loop over the switches list.
 	// This is just an example of the intended usage.
-	hash, err := c.GetConfigHash("s1.lga0t.measurement-lab.org")
+	hash, err := c.GetConfig("s1.lga0t.measurement-lab.org")
 	if err != nil {
 		log.WithFields(log.Fields{
 			"hostname": "s1.lga0t.measurement-lab.org",

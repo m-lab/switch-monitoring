@@ -1,46 +1,36 @@
 package netconf
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/scottdware/go-junos"
 )
 
-var (
-	connect = func(h string, auth *junos.AuthMethod) (connection, error) {
-		return junos.NewSession(h, auth)
-	}
-)
-
-type connection interface {
-	GetConfig(string, ...string) (string, error)
-}
-
 // Client is a client to get the switch configuration using the
 // NETCONF protocol.
 type Client struct {
-	auth *junos.AuthMethod
+	auth      *junos.AuthMethod
+	connector connector
 }
 
 // New returns a new NetconfClient.
 func New(auth *junos.AuthMethod) Client {
 	return Client{
-		auth: auth,
+		auth:      auth,
+		connector: junosConnector{},
 	}
 }
 
-// GetConfigHash connects to a switch, gets one or more sections via NETCONF,
+// GetConfig connects to a switch, gets one or more sections via NETCONF,
 // removes any comment lines at the beginning, trims whitespace and the
-// beginning/end, replaces any encrypted password with "dummy" and returns the
-// SHA256 hash of what is left.
+// beginning/end, replaces any encrypted password with "dummy" and returns
+// what is left.
 //
 // The section can be an empty string. In that case, the whole configuration
 // will be read.
-func (c Client) GetConfigHash(hostname string, section ...string) (string, error) {
-	jnpr, err := connect(hostname, c.auth)
+func (c Client) GetConfig(hostname string, section ...string) (string, error) {
+	jnpr, err := c.connector.NewSession(hostname, c.auth)
 	if err != nil {
 		return "", err
 	}
@@ -60,6 +50,5 @@ func (c Client) GetConfigHash(hostname string, section ...string) (string, error
 	re = regexp.MustCompile("encrypted-password.+")
 	config = re.ReplaceAllString(config, "encrypted-password \"dummy\";")
 
-	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(config)))
-	return hash, nil
+	return config, nil
 }

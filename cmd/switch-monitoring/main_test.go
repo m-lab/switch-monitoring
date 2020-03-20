@@ -27,7 +27,7 @@ type mockNetconf struct {
 	mustFail        bool
 }
 
-func (n *mockNetconf) GetConfigHash(hostname string, section ...string) (string, error) {
+func (n *mockNetconf) GetConfig(hostname string, section ...string) (string, error) {
 	n.getConfigCalled++
 	if n.mustFail {
 		return "", fmt.Errorf("error")
