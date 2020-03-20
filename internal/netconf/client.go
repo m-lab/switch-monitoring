@@ -9,6 +9,16 @@ import (
 	"github.com/scottdware/go-junos"
 )
 
+var (
+	connect = func(h string, auth *junos.AuthMethod) (connection, error) {
+		return junos.NewSession(h, auth)
+	}
+)
+
+type connection interface {
+	GetConfig(string, ...string) (string, error)
+}
+
 // Client is a client to get the switch configuration using the
 // NETCONF protocol.
 type Client struct {
@@ -30,7 +40,7 @@ func New(auth *junos.AuthMethod) Client {
 // The section can be an empty string. In that case, the whole configuration
 // will be read.
 func (c Client) GetConfigHash(hostname string, section ...string) (string, error) {
-	jnpr, err := junos.NewSession(hostname, c.auth)
+	jnpr, err := connect(hostname, c.auth)
 	if err != nil {
 		return "", err
 	}
@@ -45,6 +55,8 @@ func (c Client) GetConfigHash(hostname string, section ...string) (string, error
 	config = strings.TrimSpace(re.ReplaceAllString(config, ""))
 
 	// Replace all password fields with "dummy".
+	// TODO: once we start pre-configuring the switch with a random password,
+	// we can remove this step so that the actual passwords are compared.
 	re = regexp.MustCompile("encrypted-password.+")
 	config = re.ReplaceAllString(config, "encrypted-password \"dummy\";")
 

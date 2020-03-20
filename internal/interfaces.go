@@ -1,6 +1,8 @@
 package internal
 
-import "net/http"
+import (
+	"net/http"
+)
 
 // This file defines interfaces to allow for object mocking in unit tests.
 
