@@ -83,6 +83,11 @@ func Test_main(t *testing.T) {
 	main()
 	restore()
 
-	assert.NotZero(netconf.getConfigCalled)
-	assert.NotZero(siteinfo.getCalled)
+	if netconf.getConfigCalled == 0 {
+		t.Errorf("GetConfig() has not been called.")
+	}
+
+	if siteinfo.getCalled == 0 {
+		t.Errorf("Get() has not been called.")
+	}
 }

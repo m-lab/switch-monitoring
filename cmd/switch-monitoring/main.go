@@ -85,7 +85,6 @@ func main() {
 	}
 
 	log.Info(hash)
-
 }
 
 // switches downloads the switches.json file from siteinfo and generates a
