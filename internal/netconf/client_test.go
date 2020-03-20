@@ -1,15 +1,27 @@
 package netconf
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/scottdware/go-junos"
 )
 
-type mockConn struct{}
+type mockConnector struct {
+	mustFail bool
+}
 
-func (mockConn) GetConfig(string, ...string) (string, error) {
-	return "Not implemented.", nil
+func (c mockConnector) NewSession(string, *junos.AuthMethod) (connection, error) {
+	if c.mustFail {
+		return nil, fmt.Errorf("error")
+	}
+	return &mockConnection{}, nil
+}
+
+type mockConnection struct{}
+
+func (mockConnection) GetConfig(string, ...string) (string, error) {
+	return "test", nil
 }
 
 func TestNew(t *testing.T) {
@@ -21,12 +33,17 @@ func TestNew(t *testing.T) {
 }
 
 func TestClient_GetConfigHash(t *testing.T) {
-	netconf := New(&junos.AuthMethod{})
-
-	oldConnectFunc := connect
-	connect = func(h string, auth *junos.AuthMethod) (connection, error) {
-		return &mockConn{}, nil
+	netconf := &Client{
+		auth:      &junos.AuthMethod{},
+		connector: &mockConnector{},
 	}
-	netconf.GetConfigHash("test")
-	connect = oldConnectFunc
+
+	res, err := netconf.GetConfig("test")
+	if err != nil {
+		t.Errorf("GetConfig(): expected nil, got %v", err)
+	}
+
+	if res != "test" {
+		t.Errorf("GetConfig(): unexpected value %v", res)
+	}
 }
