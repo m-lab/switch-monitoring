@@ -15,8 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const responseBody = `{"abc01": {}}`
-
 //
 // Mocks used in the subsequent unit tests.
 //
@@ -37,27 +35,39 @@ func (n *mockNetconf) GetConfig(hostname string, section ...string) (string, err
 
 type mockHTTPProvider struct {
 	// How many times Get has been called.
-	getCalled int
+	getCalled    int
+	mustFail     bool
+	responseBody string
 }
 
 func (prov *mockHTTPProvider) Get(string) (*http.Response, error) {
 	prov.getCalled++
+	if prov.mustFail {
+		return nil, fmt.Errorf("error")
+	}
 	return &http.Response{
-		Body:       ioutil.NopCloser(bytes.NewBufferString(responseBody)),
+		Body:       ioutil.NopCloser(bytes.NewBufferString(prov.responseBody)),
 		StatusCode: http.StatusOK,
 	}, nil
 }
 
+//
 // Tests.
+//
+
 func Test_main(t *testing.T) {
 	assert := assert.New(t)
 	netconf := &mockNetconf{}
-	siteinfo := &mockHTTPProvider{}
+	siteinfo := &mockHTTPProvider{
+		responseBody: `{"abc01": {}}`,
+	}
 
+	oldNewNetconf := newNetconf
 	newNetconf = func(auth *junos.AuthMethod) internal.NetconfClient {
 		return netconf
 	}
 
+	oldHTTPClient := httpClient
 	httpClient = func(timeout time.Duration) internal.HTTPProvider {
 		return siteinfo
 	}
@@ -80,9 +90,8 @@ func Test_main(t *testing.T) {
 		"os.Exit was not called")
 
 	restore := osx.MustSetenv("KEY", "/path/to/key")
-	main()
-	restore()
 
+	main()
 	if netconf.getConfigCalled == 0 {
 		t.Errorf("GetConfig() has not been called.")
 	}
@@ -90,4 +99,70 @@ func Test_main(t *testing.T) {
 	if siteinfo.getCalled == 0 {
 		t.Errorf("Get() has not been called.")
 	}
+
+	// Make GetConfig() fail.
+	netconf.mustFail = true
+	main()
+	netconf.mustFail = false
+
+	restore()
+	newNetconf = oldNewNetconf
+	httpClient = oldHTTPClient
+
+}
+
+func Test_newNetconf(t *testing.T) {
+	netconf := newNetconf(&junos.AuthMethod{})
+	if netconf == nil {
+		t.Errorf("newNetconf() returned nil.")
+	}
+}
+
+func Test_httpClient(t *testing.T) {
+	client := httpClient(0)
+	if client == nil {
+		t.Errorf("httpClient() returned nil.")
+	}
+}
+
+func Test_switches(t *testing.T) {
+	siteinfo := &mockHTTPProvider{}
+
+	oldHTTPClient := httpClient
+	httpClient = func(timeout time.Duration) internal.HTTPProvider {
+		return siteinfo
+	}
+
+	siteinfo.responseBody = `{"abc01": {}}`
+	res, err := switches("test")
+	if err != nil {
+		t.Errorf("switches() returned err: %v", err)
+	}
+	if len(res) != 1 {
+		t.Errorf("switches(): expected one string, found %v", len(res))
+	}
+
+	// Get() fails.
+	siteinfo.mustFail = true
+	res, err = switches("test")
+	if err == nil {
+		t.Errorf("switches(): expected err, got nil.")
+	}
+	siteinfo.mustFail = false
+
+	// No content.
+	siteinfo.responseBody = ``
+	res, err = switches("test")
+	if err == nil {
+		t.Errorf("switches(): expected err, got nil.")
+	}
+
+	// JSON is an empty object.
+	siteinfo.responseBody = `{}`
+	res, err = switches("test")
+	if err == nil {
+		t.Errorf("switches(): expected err, got nil.")
+	}
+
+	httpClient = oldHTTPClient
 }
