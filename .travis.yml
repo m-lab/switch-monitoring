@@ -8,4 +8,6 @@ before_script:
 
 script:
 - go test -covermode=count -coverprofile=profile.cov ./...
+- go vet ./...
+- go test ./... -race
 - goveralls -coverprofile=profile.cov -service=travis-ci
