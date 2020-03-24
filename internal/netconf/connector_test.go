@@ -7,6 +7,7 @@ import (
 )
 
 func Test_junosConnector_NewSession(t *testing.T) {
+	// Let NewSession fail due to an empty AuthMethod.
 	j := &junosConnector{}
 	_, err := j.NewSession("", &junos.AuthMethod{})
 	if err == nil {
