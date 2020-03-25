@@ -1,0 +1,13 @@
+language: go
+go:
+- "1.13"
+
+before_script:
+- go get golang.org/x/tools/cmd/cover
+- go get github.com/mattn/goveralls
+
+script:
+- go test -covermode=count -coverprofile=profile.cov ./...
+- go vet ./...
+- go test ./... -race
+- goveralls -coverprofile=profile.cov -service=travis-ci
