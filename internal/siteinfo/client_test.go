@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -17,27 +16,31 @@ const switchesPath = "testdata/switches.json"
 // comes from a configurable file.
 type fileReaderProvider struct {
 	path           string
-	mustFail       bool
 	mustFailToRead bool
 }
 
 func (prov fileReaderProvider) Get(string) (*http.Response, error) {
-	if prov.mustFail {
-		return nil, fmt.Errorf("error")
-	}
-
 	// Note: it's the caller's responsibility to call Body.Close().
 	f, _ := os.Open(prov.path)
-
-	var body io.ReadCloser
-	if prov.mustFailToRead {
-		defer f.Close()
-		body = &mockReadCloser{}
-	} else {
-		body = ioutil.NopCloser(bufio.NewReader(f))
-	}
 	return &http.Response{
-		Body:       body,
+		Body:       ioutil.NopCloser(bufio.NewReader(f)),
+		StatusCode: http.StatusOK,
+	}, nil
+}
+
+// failingProvider always fails.
+type failingProvider struct{}
+
+func (prov failingProvider) Get(string) (*http.Response, error) {
+	return nil, fmt.Errorf("error")
+}
+
+// failingReadProvider returns a Body whose Read() method always fails.
+type failingReadProvider struct{}
+
+func (prov failingReadProvider) Get(string) (*http.Response, error) {
+	return &http.Response{
+		Body:       &mockReadCloser{},
 		StatusCode: http.StatusOK,
 	}, nil
 }
@@ -87,18 +90,16 @@ func TestClient_Switches(t *testing.T) {
 	}
 
 	// Make the HTTP client fail.
-	prov.mustFail = true
+	client.httpClient = &failingProvider{}
 	res, err = client.Switches()
 	if err == nil {
 		t.Errorf("Switches(): expected err, got nil.")
 	}
-	prov.mustFail = false
 
 	// Make reading the response body fail.
-	prov.mustFailToRead = true
+	client.httpClient = &failingReadProvider{}
 	res, err = client.Switches()
 	if err == nil {
 		t.Errorf("Switches(): expected err, got nil.")
 	}
-	prov.mustFailToRead = false
 }
