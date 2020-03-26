@@ -1,4 +1,4 @@
-package persistence
+package config
 
 import (
 	"bytes"
