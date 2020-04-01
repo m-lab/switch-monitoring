@@ -144,7 +144,7 @@ func Test_switches(t *testing.T) {
 
 	// Get() fails.
 	siteinfo.mustFail = true
-	res, err = switches("test")
+	_, err = switches("test")
 	if err == nil {
 		t.Errorf("switches(): expected err, got nil.")
 	}
@@ -152,14 +152,14 @@ func Test_switches(t *testing.T) {
 
 	// No content.
 	siteinfo.responseBody = ``
-	res, err = switches("test")
+	_, err = switches("test")
 	if err == nil {
 		t.Errorf("switches(): expected err, got nil.")
 	}
 
 	// JSON is an empty object.
 	siteinfo.responseBody = `{}`
-	res, err = switches("test")
+	_, err = switches("test")
 	if err == nil {
 		t.Errorf("switches(): expected err, got nil.")
 	}
