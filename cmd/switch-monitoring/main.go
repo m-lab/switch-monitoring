@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -14,9 +13,9 @@ import (
 
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/rtx"
+	"github.com/m-lab/go/siteinfo"
 	"github.com/m-lab/switch-monitoring/internal"
 	"github.com/m-lab/switch-monitoring/internal/netconf"
-	"github.com/m-lab/switch-monitoring/internal/siteinfo"
 )
 
 const (
@@ -90,15 +89,8 @@ func main() {
 // switches downloads the switches.json file from siteinfo and generates a
 // list of valid switch hostnames.
 func switches(projectID string) ([]string, error) {
-	var switches map[string]interface{}
-
 	client := siteinfo.New(projectID, httpClient(httpClientTimeout))
-	switchesJSON, err := client.Switches()
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(switchesJSON, &switches)
+	switches, err := client.Switches()
 	if err != nil {
 		return nil, err
 	}
