@@ -20,7 +20,7 @@ func Test_gcsProvider_Get(t *testing.T) {
 	rtx.Must(err, "Cannot read test file")
 
 	objects := []fakestorage.Object{
-		fakestorage.Object{
+		{
 			BucketName: "test",
 			Content:    data,
 			Name:       "abc01_qfx5100.conf",
