@@ -19,8 +19,10 @@ import (
 )
 
 const (
-	defaultProjectID  = "mlab-oti"
-	switchHostFormat  = "s1.%s.measurement-lab.org"
+	defaultProjectID = "mlab-sandbox"
+	switchHostFormat = "s1.%s.measurement-lab.org"
+	siteinfoVersion  = "v1"
+
 	httpClientTimeout = time.Second * 15
 )
 
@@ -89,7 +91,7 @@ func main() {
 // switches downloads the switches.json file from siteinfo and generates a
 // list of valid switch hostnames.
 func switches(projectID string) ([]string, error) {
-	client := siteinfo.New(projectID, httpClient(httpClientTimeout))
+	client := siteinfo.New(projectID, "v1", httpClient(httpClientTimeout))
 	switches, err := client.Switches()
 	if err != nil {
 		return nil, err
