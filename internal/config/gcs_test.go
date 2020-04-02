@@ -34,12 +34,13 @@ func Test_gcsProvider_Get(t *testing.T) {
 
 	client := server.Client()
 	provider := GCSProvider{
-		bucket: "test",
-		client: client,
+		bucket:   "test",
+		client:   client,
+		filename: "abc01_qfx5100.conf",
 	}
 
 	// Get an existing file.
-	content, err := provider.get(context.Background(), "abc01_qfx5100.conf")
+	content, err := provider.Get(context.Background())
 	if err != nil {
 		t.Errorf("Get(): cannot get file: %v", err)
 	}
@@ -51,7 +52,7 @@ func Test_gcsProvider_Get(t *testing.T) {
 	readAll = func(io.Reader) ([]byte, error) {
 		return nil, fmt.Errorf("error")
 	}
-	content, err = provider.get(context.Background(), "abc01_qfx5100.conf")
+	content, err = provider.Get(context.Background())
 	if err == nil {
 		t.Errorf("Get(): expected err, got nil")
 	}
@@ -60,7 +61,8 @@ func Test_gcsProvider_Get(t *testing.T) {
 	}
 
 	// Get a non-existing file.
-	content, err = provider.get(context.Background(), "test.conf")
+	provider.filename = "test.conf"
+	content, err = provider.Get(context.Background())
 	if err == nil {
 		t.Errorf("Get(): expected err, got nil")
 	}
@@ -81,6 +83,17 @@ func TestFromURL(t *testing.T) {
 		t.Errorf("FromURL(): expected nil, got provider")
 	}
 
+	// Pass an URL with a bucket but no filename.
+	u, err = url.Parse("gs://bucket/")
+	rtx.Must(err, "Cannot parse test URL")
+	gcs, err = FromURL(context.Background(), u)
+	if err != ErrNoFilenameInURL {
+		t.Errorf("FromURL(): expected err, got nil or wrong error type")
+	}
+	if gcs != nil {
+		t.Errorf("FromURL(): expected nil, got provider")
+	}
+
 	// Pass a valid URL.
 	u, err = url.Parse("gs://bucket/abc01_qfx5100.conf")
 	rtx.Must(err, "Cannot parse test URL")
@@ -88,7 +101,7 @@ func TestFromURL(t *testing.T) {
 	if err != nil {
 		t.Errorf("FromURL(): unexpected error: %v", err)
 	}
-	if gcs.bucket != "bucket" {
+	if gcs.bucket != "bucket" || gcs.filename != "abc01_qfx5100.conf" {
 		t.Errorf("FromURL() did not return the expected gcsProvider")
 	}
 }
