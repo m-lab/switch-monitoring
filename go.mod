@@ -9,4 +9,5 @@ require (
 	github.com/m-lab/go v1.3.1-0.20200401145318-d8bd776332c7
 	github.com/scottdware/go-junos v0.0.0-20191101184514-da1ec4631b03
 	github.com/stretchr/testify v1.5.1
+	google.golang.org/api v0.20.0
 )
