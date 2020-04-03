@@ -2,7 +2,6 @@ package netconf
 
 import (
 	"fmt"
-	"io/ioutil"
 	"regexp"
 	"strings"
 
@@ -12,7 +11,6 @@ import (
 // Compare cleans up two switch configuration files and returns true if they
 // are the same.
 func Compare(c1, c2 string) bool {
-	ioutil.WriteFile("lga0t.conf", []byte(c1), 0644)
 	c1 = cleanConfig(c1)
 	c2 = cleanConfig(c2)
 
