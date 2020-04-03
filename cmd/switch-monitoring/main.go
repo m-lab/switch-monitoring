@@ -38,7 +38,11 @@ var (
 		"Passphrase to decrypt the private key. Can be omitted.")
 	flagDebug = flag.Bool("debug", true, "Show debug messages.")
 
-	osExit     = os.Exit
+	osExit        = os.Exit
+	configFromURL = func(ctx context.Context, u *url.URL) (internal.ConfigProvider, error) {
+		return config.FromURL(ctx, u)
+	}
+
 	newNetconf = func(auth *junos.AuthMethod) internal.NetconfClient {
 		return netconf.New(auth)
 	}
@@ -106,7 +110,7 @@ func checkAll(c internal.NetconfClient, sites []string) {
 			*flagProject, site))
 		rtx.Must(err, "Cannot create URL for site %s", site)
 
-		prov, err := config.FromURL(context.Background(), url)
+		prov, err := configFromURL(context.Background(), url)
 		rtx.Must(err, "Cannot create GCS provider for site %", site)
 
 		archived, err := prov.Get(context.Background())

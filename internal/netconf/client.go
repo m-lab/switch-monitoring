@@ -35,7 +35,3 @@ func (c Client) GetConfig(hostname string, section ...string) (string, error) {
 
 	return config, nil
 }
-
-func (c Client) Validate(validConfig string) (bool, error) {
-	return true, nil
-}
