@@ -10,6 +10,8 @@ import (
 func TestCompare(t *testing.T) {
 	abc01Conf, err := ioutil.ReadFile("testdata/abc01.conf")
 	rtx.Must(err, "Cannot read test data")
+	abc01BisConf, err := ioutil.ReadFile("testdata/abc01-bis.conf")
+	rtx.Must(err, "Cannot read test data")
 	abc02Conf, err := ioutil.ReadFile("testdata/abc02.conf")
 	rtx.Must(err, "Cannot read test data")
 
@@ -38,6 +40,12 @@ func TestCompare(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "multiline-comments-2",
+			c1:   "# comment\nline\n#comment\nline",
+			c2:   "line\nline",
+			want: true,
+		},
+		{
 			name: "version-removed",
 			c1:   "version 1",
 			c2:   "version 2",
@@ -60,6 +68,12 @@ func TestCompare(t *testing.T) {
 			c1:   string(abc01Conf),
 			c2:   string(abc02Conf),
 			want: false,
+		},
+		{
+			name: "same-configs-different-comments",
+			c1:   string(abc01Conf),
+			c2:   string(abc01BisConf),
+			want: true,
 		},
 	}
 	for _, tt := range tests {

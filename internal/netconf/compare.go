@@ -29,8 +29,8 @@ func cleanConfig(config string) string {
 	re := regexp.MustCompile("version.+")
 	config = re.ReplaceAllString(config, "")
 
-	// Remove comments (lines starting with '#').
-	re = regexp.MustCompile("(?m)^#.*$")
+	// Remove single-line comments (lines starting with '#').
+	re = regexp.MustCompile("(?m)^#.*\\n*")
 	config = strings.TrimSpace(re.ReplaceAllString(config, ""))
 
 	// Replace all password fields with "dummy".
