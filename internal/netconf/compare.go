@@ -23,7 +23,9 @@ func Compare(c1, c2 string) bool {
 // beginning/end, replaces any encrypted password with "dummy" and returns
 // what is left.
 func cleanConfig(config string) string {
-	// Remove version string.
+	// Remove version string. This is necessary since the switch will always
+	// report the current version number at the beginning of the config file,
+	// but the version is not part of the config file itself.
 	re := regexp.MustCompile("version.+")
 	config = re.ReplaceAllString(config, "")
 
