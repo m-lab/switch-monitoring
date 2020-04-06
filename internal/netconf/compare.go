@@ -30,7 +30,11 @@ func cleanConfig(config string) string {
 	config = re.ReplaceAllString(config, "")
 
 	// Remove single-line comments (lines starting with '#').
-	re = regexp.MustCompile("(?m)^#.*\\n*")
+	re = regexp.MustCompile(`(?m)^#.*\n*`)
+	config = strings.TrimSpace(re.ReplaceAllString(config, ""))
+
+	// Remove C-style multiline comments (/* ... */).
+	re = regexp.MustCompile(`(?s)\/\*.*?\*\/`)
 	config = strings.TrimSpace(re.ReplaceAllString(config, ""))
 
 	// Replace all password fields with "dummy".

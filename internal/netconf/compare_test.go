@@ -34,15 +34,27 @@ func TestCompare(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "multiline-comments",
+			name: "single-line-comments",
 			c1:   "#comment\n#another comment",
 			c2:   "#more comments\n#",
 			want: true,
 		},
 		{
-			name: "multiline-comments-2",
+			name: "single-line-comments-2",
 			c1:   "# comment\nline\n#comment\nline",
 			c2:   "line\nline",
+			want: true,
+		},
+		{
+			name: "c-style-comments",
+			c1:   "text/* comment */text\n",
+			c2:   "texttext",
+			want: true,
+		},
+		{
+			name: "c-style-multi-line-comments",
+			c1:   "text\n/*multi\nline\ncomment*/text",
+			c2:   "text\ntext",
 			want: true,
 		},
 		{
