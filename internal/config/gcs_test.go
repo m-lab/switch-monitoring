@@ -16,14 +16,14 @@ import (
 func Test_gcsProvider_Get(t *testing.T) {
 	// Start a GCS test server with a single bucket/file and no listener
 	// so the test does not use the network stack.
-	data, err := ioutil.ReadFile("testdata/abc01_qfx5100.conf")
+	data, err := ioutil.ReadFile("testdata/abc01.conf")
 	rtx.Must(err, "Cannot read test file")
 
 	objects := []fakestorage.Object{
-		fakestorage.Object{
+		{
 			BucketName: "test",
 			Content:    data,
-			Name:       "abc01_qfx5100.conf",
+			Name:       "abc01.conf",
 		},
 	}
 	server, err := fakestorage.NewServerWithOptions(fakestorage.Options{
@@ -36,7 +36,7 @@ func Test_gcsProvider_Get(t *testing.T) {
 	provider := GCSProvider{
 		bucket:   "test",
 		client:   client,
-		filename: "abc01_qfx5100.conf",
+		filename: "abc01.conf",
 	}
 
 	// Get an existing file.
@@ -95,13 +95,13 @@ func TestFromURL(t *testing.T) {
 	}
 
 	// Pass a valid URL.
-	u, err = url.Parse("gs://bucket/abc01_qfx5100.conf")
+	u, err = url.Parse("gs://bucket/abc01.conf")
 	rtx.Must(err, "Cannot parse test URL")
 	gcs, err = FromURL(context.Background(), u)
 	if err != nil {
 		t.Errorf("FromURL(): unexpected error: %v", err)
 	}
-	if gcs.bucket != "bucket" || gcs.filename != "abc01_qfx5100.conf" {
+	if gcs.bucket != "bucket" || gcs.filename != "abc01.conf" {
 		t.Errorf("FromURL() did not return the expected gcsProvider")
 	}
 }

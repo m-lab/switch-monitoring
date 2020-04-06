@@ -3,7 +3,6 @@ package netconf
 import (
 	"fmt"
 	"io/ioutil"
-	"strings"
 	"testing"
 
 	"github.com/scottdware/go-junos"
@@ -33,7 +32,7 @@ func (c mockConnection) GetConfig(string, ...string) (string, error) {
 	}
 
 	// Read test file.
-	testfile, err := ioutil.ReadFile("testdata/abc01_qfx5100.conf")
+	testfile, err := ioutil.ReadFile("testdata/abc01.conf")
 	if err != nil {
 		return "", err
 	}
@@ -59,14 +58,8 @@ func TestClient_GetConfigHash(t *testing.T) {
 	if err != nil {
 		t.Errorf("GetConfig(): expected nil, got %v", err)
 	}
-
-	// Check the content has been cleaned as expected.
-	if strings.HasPrefix(res, "#") {
-		t.Errorf("GetConfig(): comments have not been removed.")
-	}
-
-	if !strings.HasPrefix(res, "version") {
-		t.Errorf("GetConfig(): config does not begin with 'version'")
+	if len(res) == 0 {
+		t.Errorf("GetConfig(): len(config) is zero.")
 	}
 
 	// Let the connector fail.
