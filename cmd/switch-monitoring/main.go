@@ -13,11 +13,11 @@ import (
 	"github.com/apex/log/handlers/text"
 	"github.com/scottdware/go-junos"
 
+	"github.com/m-lab/go/content"
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/rtx"
 	"github.com/m-lab/go/siteinfo"
 	"github.com/m-lab/switch-monitoring/internal"
-	"github.com/m-lab/switch-monitoring/internal/config"
 	"github.com/m-lab/switch-monitoring/internal/netconf"
 )
 
@@ -39,8 +39,8 @@ var (
 	flagDebug = flag.Bool("debug", true, "Show debug messages.")
 
 	osExit        = os.Exit
-	configFromURL = func(ctx context.Context, u *url.URL) (internal.ConfigProvider, error) {
-		return config.FromURL(ctx, u)
+	configFromURL = func(ctx context.Context, u *url.URL) (content.Provider, error) {
+		return content.FromURL(ctx, u)
 	}
 
 	newNetconf = func(auth *junos.AuthMethod) internal.NetconfClient {
