@@ -78,19 +78,35 @@ switch_monitoring_config_match{status="ok",target="s1.abc01.measurement-lab.org"
 		t.Errorf("Collect() returned err: %v", err)
 	}
 
+	// Compare two different configs.
+	expected = metadata + `
+switch_monitoring_config_match{status="config_mismatch",target="s1.abc01.measurement-lab.org"} 1
+`
+	provider.filepath = "testdata/abc02.conf"
+	err = testutil.CollectAndCompare(collector, strings.NewReader(expected))
+	if err != nil {
+		t.Errorf("Collect() returned err: %v", err)
+	}
+
 	// Make the content provider fail.
+	expected = metadata + `
+switch_monitoring_config_match{status="config_not_found_gcs",target="s1.abc01.measurement-lab.org"} 1
+`
 	provider.fail = true
 	err = testutil.CollectAndCompare(collector, strings.NewReader(expected))
-	if err == nil {
-		t.Errorf("Collect() expected err, got nil")
+	if err != nil {
+		t.Errorf("Collect() returned err: %v", err)
 	}
 	provider.fail = false
 
 	// Make netconf fail.
+	expected = metadata + `
+switch_monitoring_config_match{status="config_not_found_switch",target="s1.abc01.measurement-lab.org"} 1
+`
 	netconf.fail = true
 	err = testutil.CollectAndCompare(collector, strings.NewReader(expected))
-	if err == nil {
-		t.Errorf("Collect() expected err, got nil")
+	if err != nil {
+		t.Errorf("Collect() returned err: %v", err)
 	}
 	netconf.fail = false
 }
