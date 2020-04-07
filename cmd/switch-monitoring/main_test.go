@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/m-lab/go/content"
 	"github.com/m-lab/go/osx"
 	"github.com/m-lab/go/rtx"
 	"github.com/m-lab/switch-monitoring/internal"
@@ -98,7 +99,7 @@ func Test_main(t *testing.T) {
 	}
 
 	oldConfigFromURL := configFromURL
-	configFromURL = func(ctx context.Context, u *url.URL) (internal.ConfigProvider, error) {
+	configFromURL = func(ctx context.Context, u *url.URL) (content.Provider, error) {
 		return configProvider, nil
 	}
 
@@ -217,7 +218,7 @@ func Test_checkAll(t *testing.T) {
 	configProvider := &mockConfigProvider{
 		configFile: "testdata/abc01.conf",
 	}
-	configFromURL = func(ctx context.Context, u *url.URL) (internal.ConfigProvider, error) {
+	configFromURL = func(ctx context.Context, u *url.URL) (content.Provider, error) {
 		return configProvider, nil
 	}
 
