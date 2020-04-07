@@ -147,6 +147,7 @@ github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
+github.com/m-lab/go v1.3.0 h1:Gn+AYKSRKBgP4cMc2YxmdT1bmGXSmn/PxqeCSOWfvog=
 github.com/m-lab/go v1.3.1-0.20200402155048-8d172f3e2597 h1:F7ObjxXEO6D3HQEP3/SdiXfi/NrOKU/sXxwSajsguXw=
 github.com/m-lab/go v1.3.1-0.20200402155048-8d172f3e2597/go.mod h1:f22d1CtoFIho8yt0wPNYo0Lx5h8YfgRW4+1pzQTeQRw=
 github.com/m-lab/go v1.3.1-0.20200403144322-d726433a0387 h1:QI7p+runT8ZmGIWTYmDhpmkbwjuLZoBtDKd+UI2JZVk=
