@@ -104,10 +104,6 @@ func main() {
 	rtx.Must(httpx.ListenAndServeAsync(s), "Could not start HTTP server")
 	defer s.Close()
 
-	// Initialize Prometheus server for monitoring.
-	// promServer := prometheusx.MustServeMetrics()
-	// defer promServer.Close()
-
 	// Keep serving until the context is canceled.
 	<-ctx.Done()
 }
