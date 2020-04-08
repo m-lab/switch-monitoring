@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 
@@ -13,44 +11,46 @@ import (
 	"github.com/apex/log/handlers/text"
 	"github.com/scottdware/go-junos"
 
-	"github.com/m-lab/go/content"
 	"github.com/m-lab/go/flagx"
+	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/rtx"
-	"github.com/m-lab/go/siteinfo"
 	"github.com/m-lab/switch-monitoring/internal"
+	"github.com/m-lab/switch-monitoring/internal/collector"
 	"github.com/m-lab/switch-monitoring/internal/netconf"
 )
 
 const (
-	defaultProjectID = "mlab-sandbox"
-	switchHostFormat = "s1.%s.measurement-lab.org"
-	siteinfoVersion  = "v1"
+	defaultListenAddr = ":8080"
+	defaultPromPort   = ":9600"
+	defaultProjectID  = "mlab-sandbox"
 
+	switchHostFormat  = "s1.%s.measurement-lab.org"
+	siteinfoVersion   = "v1"
 	httpClientTimeout = time.Second * 15
 )
 
 var (
+	listenAddr  = flag.String("listenaddr", defaultListenAddr, "Address to listen on")
 	flagProject = flag.String("project", defaultProjectID,
 		"Use a specific GCP Project ID.")
-	flagPrivateKey = flag.String("key", "",
+
+	flagPrivateKey = flag.String("ssh.key", "",
 		"Path to the SSH private key to use.")
-	flagPassphrase = flag.String("pass", "",
+	flagPassphrase = flag.String("ssh.passphrase", "",
 		"Passphrase to decrypt the private key. Can be omitted.")
+
+	flagUsername = flag.String("auth.username", "", "Username for HTTP basic auth")
+	flagPassword = flag.String("auth.password", "", "Password for HTTP basic auth")
+
 	flagDebug = flag.Bool("debug", true, "Show debug messages.")
 
-	osExit        = os.Exit
-	configFromURL = func(ctx context.Context, u *url.URL) (content.Provider, error) {
-		return content.FromURL(ctx, u)
-	}
+	// Context for the whole program.
+	ctx, cancel = context.WithCancel(context.Background())
+
+	osExit = os.Exit
 
 	newNetconf = func(auth *junos.AuthMethod) internal.NetconfClient {
 		return netconf.New(auth)
-	}
-
-	httpClient = func(timeout time.Duration) internal.HTTPProvider {
-		return &http.Client{
-			Timeout: timeout,
-		}
 	}
 )
 
@@ -76,79 +76,29 @@ func main() {
 		PrivateKey: *flagPrivateKey,
 		Passphrase: *flagPassphrase,
 	}
-	c := newNetconf(auth)
+	netconf := newNetconf(auth)
 
-	// Get all the switch hostnames.
-	log.Infof("Fetching switch hostnames for project %s", *flagProject)
-	sites, err := sites(*flagProject)
-	rtx.Must(err, "Cannot fetch the switch list")
+	collectorHandler := collector.NewHandler(*flagProject, netconf)
 
-	// TODO: Here we should start a Prometheus instance and check the configs
-	// only when the /metrics endpoint is called, caching as long as we deem
-	// necessary (e.g. 24 hours.)
-	//
-	// For now, the check only happens once.
+	mux := http.NewServeMux()
+	mux.Handle("/v1/check", collectorHandler)
 
-	checkAll(c, sites)
+	s := makeHTTPServer(mux)
+
+	rtx.Must(httpx.ListenAndServeAsync(s), "Could not start HTTP server")
+	defer s.Close()
+
+	// Initialize Prometheus server for monitoring.
+	// promServer := prometheusx.MustServeMetrics()
+	// defer promServer.Close()
+
+	// Keep serving until the context is canceled.
+	<-ctx.Done()
 }
 
-func checkAll(c internal.NetconfClient, sites []string) {
-	for _, site := range sites {
-		hostname := fmt.Sprintf(switchHostFormat, site)
-		conf, err := c.GetConfig(hostname)
-		if err != nil {
-			// TODO: expose this error as a Prometheus metric.
-			log.WithFields(log.Fields{
-				"site": site,
-			}).WithError(err).Error("Connection failed")
-			continue
-		}
-
-		// Get the archived config from GCS.
-		url, err := url.Parse(fmt.Sprintf(
-			"gs://switch-config-%s/configs/current/%s.conf",
-			*flagProject, site))
-		rtx.Must(err, "Cannot create URL for site %s", site)
-
-		prov, err := configFromURL(context.Background(), url)
-		rtx.Must(err, "Cannot create GCS provider for site %", site)
-
-		archived, err := prov.Get(context.Background())
-		if err != nil {
-			log.WithFields(log.Fields{
-				"site": site,
-			}).WithError(err).Error("Cannot retrieve archived config")
-			continue
-		}
-
-		if !netconf.Compare(conf, string(archived)) {
-			log.WithFields(log.Fields{
-				"site": site,
-			}).Warn("Current and archived configuration for %s do not match.")
-		}
+func makeHTTPServer(h http.Handler) *http.Server {
+	return &http.Server{
+		Addr:    *listenAddr,
+		Handler: h,
 	}
-}
-
-// sites downloads the switches.json file from siteinfo and generates a
-// list of sites.
-func sites(projectID string) ([]string, error) {
-	client := siteinfo.New(projectID, "v1", httpClient(httpClientTimeout))
-	switches, err := client.Switches()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(switches) == 0 {
-		return nil, fmt.Errorf("the retrieved switches list is empty")
-	}
-
-	sitesList := make([]string, len(switches))
-
-	i := 0
-	for k := range switches {
-		sitesList[i] = k
-		i++
-	}
-
-	return sitesList, nil
 }
