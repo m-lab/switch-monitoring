@@ -9,6 +9,7 @@ import (
 
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/text"
+	"github.com/goji/httpauth"
 	"github.com/scottdware/go-junos"
 
 	"github.com/m-lab/go/flagx"
@@ -55,6 +56,8 @@ var (
 )
 
 func main() {
+	var collectorHandler http.Handler
+
 	flag.Parse()
 
 	if *flagDebug {
@@ -78,7 +81,20 @@ func main() {
 	}
 	netconf := newNetconf(auth)
 
-	collectorHandler := collector.NewHandler(*flagProject, netconf)
+	collectorHandler = collector.NewHandler(*flagProject, netconf)
+
+	if *flagUsername != "" && *flagPassword != "" {
+		authOpts := httpauth.AuthOptions{
+			Realm:    "switch-monitoring",
+			User:     *flagUsername,
+			Password: *flagPassword,
+		}
+		collectorHandler = httpauth.BasicAuth(authOpts)(collectorHandler)
+	} else {
+		log.Warn("Username and password have not been specified!")
+		log.Warn("Make sure you add -auth.username and -auth.password before " +
+			"running in production.")
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/v1/check", collectorHandler)
