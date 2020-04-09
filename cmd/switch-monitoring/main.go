@@ -22,7 +22,6 @@ import (
 
 const (
 	defaultListenAddr = ":8080"
-	defaultPromPort   = ":9600"
 	defaultProjectID  = "mlab-sandbox"
 
 	switchHostFormat  = "s1.%s.measurement-lab.org"
