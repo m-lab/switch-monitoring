@@ -14,17 +14,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+var parseURL = url.Parse
+
 // Handler is the HTTP handler for /check
 type Handler struct {
-	projectID string
-	netconf   internal.NetconfClient
+	projectID     string
+	netconf       internal.NetconfClient
+	getConfigFunc func(context.Context, *url.URL) (content.Provider, error)
 }
 
 // NewHandler returns a Handler with the specified configuration.
 func NewHandler(projectID string, netconf internal.NetconfClient) *Handler {
 	return &Handler{
-		projectID: projectID,
-		netconf:   netconf,
+		projectID:     projectID,
+		netconf:       netconf,
+		getConfigFunc: content.FromURL,
 	}
 }
 
@@ -52,7 +56,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	provider, err := h.getProviderForConfig(site)
 	if err != nil {
-		writeError(w, err, http.StatusBadRequest)
+		writeError(w, err, http.StatusInternalServerError)
 		return
 	}
 
@@ -72,7 +76,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // getProviderForConfig initializes a content.Provider for the specified site.
 func (h *Handler) getProviderForConfig(site string) (content.Provider, error) {
-	url, err := url.Parse(
+	url, err := parseURL(
 		fmt.Sprintf("gs://switch-config-%s/configs/latest/%s.conf",
 			h.projectID, site),
 	)
@@ -80,7 +84,7 @@ func (h *Handler) getProviderForConfig(site string) (content.Provider, error) {
 		return nil, err
 	}
 
-	provider, err := content.FromURL(context.Background(), url)
+	provider, err := h.getConfigFunc(context.Background(), url)
 	if err != nil {
 		return nil, err
 	}
