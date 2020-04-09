@@ -97,6 +97,21 @@ func main() {
 	collectorHandler = collector.NewHandler(*flagProject, netconf)
 
 	// Create an in-memory cache to avoid connecting to a switch too often.
+	//
+	// Assuming we have enough capacity to keep all the responses in the cache,
+	// the choice of eviction algorithm does not really make a difference.
+	//
+	// If we don't have enough capacity to keep all the responses in memory:
+	//
+	//   - By using MRU, the first capacity - 1 responses will be re-used for
+	//     24 hours and switches - capacity + 1 new SSH connections will be
+	//     made.
+	//   - By using LRU, all the SSH connections will be made each time.
+	//
+	// Both conditions are very undesirable and we should make sure
+	// capacity > switches at all times. However, using MRU significantly
+	// limits the impact when this does not hold true anymore.
+
 	memcache, err := memory.NewAdapter(
 		memory.AdapterWithAlgorithm(memory.MRU),
 		memory.AdapterWithCapacity(*flagCacheCapacity),
