@@ -30,19 +30,19 @@ const (
 )
 
 var (
-	listenAddr  = flag.String("listenaddr", defaultListenAddr, "Address to listen on")
-	flagProject = flag.String("project", defaultProjectID,
+	listenAddr = flag.String("listenaddr", defaultListenAddr, "Address to listen on")
+	project    = flag.String("project", defaultProjectID,
 		"Use a specific GCP Project ID.")
 
-	flagPrivateKey = flag.String("ssh.key", "",
+	sshKey = flag.String("ssh.key", "",
 		"Path to the SSH private key to use.")
-	flagPassphrase = flag.String("ssh.passphrase", "",
+	sshPassphrase = flag.String("ssh.passphrase", "",
 		"Passphrase to decrypt the private key. Can be omitted.")
 
-	flagUsername = flag.String("auth.username", "", "Username for HTTP basic auth")
-	flagPassword = flag.String("auth.password", "", "Password for HTTP basic auth")
+	authUsername = flag.String("auth.username", "", "Username for HTTP basic auth")
+	authPassword = flag.String("auth.password", "", "Password for HTTP basic auth")
 
-	flagDebug = flag.Bool("debug", true, "Show debug messages.")
+	debug = flag.Bool("debug", true, "Show debug messages.")
 
 	// Context for the whole program.
 	ctx, cancel = context.WithCancel(context.Background())
@@ -59,7 +59,7 @@ func main() {
 
 	flag.Parse()
 
-	if *flagDebug {
+	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
 	log.SetHandler(text.New(os.Stdout))
@@ -67,7 +67,7 @@ func main() {
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Cannot parse env args")
 
 	// A private key must be provided.
-	if *flagPrivateKey == "" {
+	if *sshKey == "" {
 		log.Error("The SSH private key must be provided.")
 		osExit(1)
 	}
@@ -75,18 +75,18 @@ func main() {
 	// Initialize Siteinfo provider and the NETCONF client.
 	auth := &junos.AuthMethod{
 		Username:   "root",
-		PrivateKey: *flagPrivateKey,
-		Passphrase: *flagPassphrase,
+		PrivateKey: *sshKey,
+		Passphrase: *sshPassphrase,
 	}
 	netconf := newNetconf(auth)
 
-	collectorHandler = collector.NewHandler(*flagProject, netconf)
+	collectorHandler = collector.NewHandler(*project, netconf)
 
-	if *flagUsername != "" && *flagPassword != "" {
+	if *authUsername != "" && *authPassword != "" {
 		authOpts := httpauth.AuthOptions{
 			Realm:    "switch-monitoring",
-			User:     *flagUsername,
-			Password: *flagPassword,
+			User:     *authUsername,
+			Password: *authPassword,
 		}
 		collectorHandler = httpauth.BasicAuth(authOpts)(collectorHandler)
 	} else {
