@@ -23,6 +23,8 @@ const (
 	defaultListenAddr = ":8080"
 	defaultProjectID  = "mlab-sandbox"
 
+	// TODO: use v2 hostnames once they are available.
+	// (https://github.com/m-lab/siteinfo/issues/134)
 	switchHostFormat  = "s1.%s.measurement-lab.org"
 	siteinfoVersion   = "v1"
 	httpClientTimeout = time.Second * 15
