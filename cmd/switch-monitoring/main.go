@@ -9,7 +9,6 @@ import (
 
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/text"
-	"github.com/goji/httpauth"
 	"github.com/scottdware/go-junos"
 
 	"github.com/m-lab/go/flagx"
@@ -38,9 +37,6 @@ var (
 		"Path to the SSH private key to use.")
 	sshPassphrase = flag.String("ssh.passphrase", "",
 		"Passphrase to decrypt the private key. Can be omitted.")
-
-	authUsername = flag.String("auth.username", "", "Username for HTTP basic auth")
-	authPassword = flag.String("auth.password", "", "Password for HTTP basic auth")
 
 	debug = flag.Bool("debug", true, "Show debug messages.")
 
@@ -81,19 +77,6 @@ func main() {
 	netconf := newNetconf(auth)
 
 	collectorHandler = collector.NewHandler(*project, netconf)
-
-	if *authUsername != "" && *authPassword != "" {
-		authOpts := httpauth.AuthOptions{
-			Realm:    "switch-monitoring",
-			User:     *authUsername,
-			Password: *authPassword,
-		}
-		collectorHandler = httpauth.BasicAuth(authOpts)(collectorHandler)
-	} else {
-		log.Warn("Username and password have not been specified!")
-		log.Warn("Make sure you add -auth.username and -auth.password before " +
-			"running in production.")
-	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/v1/check", collectorHandler)

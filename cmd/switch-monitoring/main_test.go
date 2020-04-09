@@ -75,15 +75,6 @@ func Test_main(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	cancel()
 
-	restoreUser := osx.MustSetenv("AUTH_USERNAME", "test")
-	restorePass := osx.MustSetenv("AUTH_PASSWORD", "test")
-	go main()
-
-	time.Sleep(500 * time.Millisecond)
-	cancel()
-
-	restoreUser()
-	restorePass()
 	restorePort()
 	restoreKey()
 	newNetconf = oldNewNetconf
