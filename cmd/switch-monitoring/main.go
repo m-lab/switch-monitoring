@@ -11,6 +11,8 @@ import (
 	"github.com/apex/log/handlers/text"
 	"github.com/goji/httpauth"
 	"github.com/scottdware/go-junos"
+	cache "github.com/victorspringer/http-cache"
+	"github.com/victorspringer/http-cache/adapter/memory"
 
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/httpx"
@@ -24,9 +26,16 @@ const (
 	defaultListenAddr = ":8080"
 	defaultProjectID  = "mlab-sandbox"
 
-	switchHostFormat  = "s1.%s.measurement-lab.org"
-	siteinfoVersion   = "v1"
+	switchHostFormat = "s1.%s.measurement-lab.org"
+	siteinfoVersion  = "v1"
+
 	httpClientTimeout = time.Second * 15
+
+	// The default cache capacity has been chosen based on the current amount
+	// of switches on the platform, plus some significant headroom for future
+	// expansion.
+	defaultCacheCapacity = 250
+	defaultCacheTTL      = 24 * time.Hour
 )
 
 var (
@@ -41,6 +50,11 @@ var (
 
 	flagUsername = flag.String("auth.username", "", "Username for HTTP basic auth")
 	flagPassword = flag.String("auth.password", "", "Password for HTTP basic auth")
+
+	flagCacheCapacity = flag.Int("collector.cache-capacity", defaultCacheCapacity,
+		"Maximum # of cached responses for the e2e endpoint")
+	flagCacheTTL = flag.Duration("collector.cache-ttl", defaultCacheTTL,
+		"TTL of cached responses for the e2e endpoint")
 
 	flagDebug = flag.Bool("debug", true, "Show debug messages.")
 
@@ -81,6 +95,21 @@ func main() {
 	netconf := newNetconf(auth)
 
 	collectorHandler = collector.NewHandler(*flagProject, netconf)
+
+	// Create an in-memory cache to avoid connecting to a switch too often.
+	memcache, err := memory.NewAdapter(
+		memory.AdapterWithAlgorithm(memory.MRU),
+		memory.AdapterWithCapacity(*flagCacheCapacity),
+	)
+	rtx.Must(err, "Cannot initialize in-memory cache.")
+
+	cacheClient, err := cache.NewClient(
+		cache.ClientWithAdapter(memcache),
+		cache.ClientWithTTL(*flagCacheTTL),
+	)
+	rtx.Must(err, "Cannot initialize in-memory cache client.")
+
+	collectorHandler = cacheClient.Middleware(collectorHandler)
 
 	if *flagUsername != "" && *flagPassword != "" {
 		authOpts := httpauth.AuthOptions{
