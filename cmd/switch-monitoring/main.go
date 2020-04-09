@@ -52,9 +52,9 @@ var (
 	flagPassword = flag.String("auth.password", "", "Password for HTTP basic auth")
 
 	flagCacheCapacity = flag.Int("collector.cache-capacity", defaultCacheCapacity,
-		"Maximum # of cached responses for the e2e endpoint")
+		"Maximum # of cached responses for the /check endpoint")
 	flagCacheTTL = flag.Duration("collector.cache-ttl", defaultCacheTTL,
-		"TTL of cached responses for the e2e endpoint")
+		"TTL of cached responses for the /check endpoint")
 
 	flagDebug = flag.Bool("debug", true, "Show debug messages.")
 
