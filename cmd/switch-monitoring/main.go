@@ -3,61 +3,74 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/text"
 	"github.com/scottdware/go-junos"
+	cache "github.com/victorspringer/http-cache"
+	"github.com/victorspringer/http-cache/adapter/memory"
 
-	"github.com/m-lab/go/content"
 	"github.com/m-lab/go/flagx"
+	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/rtx"
-	"github.com/m-lab/go/siteinfo"
 	"github.com/m-lab/switch-monitoring/internal"
+	"github.com/m-lab/switch-monitoring/internal/collector"
 	"github.com/m-lab/switch-monitoring/internal/netconf"
 )
 
 const (
-	defaultProjectID = "mlab-sandbox"
-	switchHostFormat = "s1.%s.measurement-lab.org"
-	siteinfoVersion  = "v1"
+	defaultListenAddr = ":8080"
+	defaultProjectID  = "mlab-sandbox"
 
+	// TODO: use v2 hostnames once they are available.
+	// (https://github.com/m-lab/siteinfo/issues/134)
+	switchHostFormat  = "s1.%s.measurement-lab.org"
+	siteinfoVersion   = "v1"
 	httpClientTimeout = time.Second * 15
+
+	// The default cache capacity has been chosen based on the current amount
+	// of switches on the platform, plus some significant headroom for future
+	// expansion.
+	defaultCacheCapacity = 250
+	defaultCacheTTL      = 24 * time.Hour
 )
 
 var (
-	flagProject = flag.String("project", defaultProjectID,
+	listenAddr = flag.String("listenaddr", defaultListenAddr, "Address to listen on")
+	project    = flag.String("project", defaultProjectID,
 		"Use a specific GCP Project ID.")
-	flagPrivateKey = flag.String("key", "",
-		"Path to the SSH private key to use.")
-	flagPassphrase = flag.String("pass", "",
-		"Passphrase to decrypt the private key. Can be omitted.")
-	flagDebug = flag.Bool("debug", true, "Show debug messages.")
 
-	osExit        = os.Exit
-	configFromURL = func(ctx context.Context, u *url.URL) (content.Provider, error) {
-		return content.FromURL(ctx, u)
-	}
+	sshKey = flag.String("ssh.key", "",
+		"Path to the SSH private key to use.")
+	sshPassphrase = flag.String("ssh.passphrase", "",
+		"Passphrase to decrypt the private key. Can be omitted.")
+
+	cacheCapacity = flag.Int("collector.cache-capacity", defaultCacheCapacity,
+		"Maximum # of cached responses for the /check endpoint")
+	cacheTTL = flag.Duration("collector.cache-ttl", defaultCacheTTL,
+		"TTL of cached responses for the /check endpoint")
+
+	debug = flag.Bool("debug", true, "Show debug messages.")
+
+	// Context for the whole program.
+	ctx, cancel = context.WithCancel(context.Background())
+
+	osExit = os.Exit
 
 	newNetconf = func(auth *junos.AuthMethod) internal.NetconfClient {
 		return netconf.New(auth)
 	}
-
-	httpClient = func(timeout time.Duration) internal.HTTPProvider {
-		return &http.Client{
-			Timeout: timeout,
-		}
-	}
 )
 
 func main() {
+	var collectorHandler http.Handler
+
 	flag.Parse()
 
-	if *flagDebug {
+	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
 	log.SetHandler(text.New(os.Stdout))
@@ -65,7 +78,7 @@ func main() {
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Cannot parse env args")
 
 	// A private key must be provided.
-	if *flagPrivateKey == "" {
+	if *sshKey == "" {
 		log.Error("The SSH private key must be provided.")
 		osExit(1)
 	}
@@ -73,82 +86,58 @@ func main() {
 	// Initialize Siteinfo provider and the NETCONF client.
 	auth := &junos.AuthMethod{
 		Username:   "root",
-		PrivateKey: *flagPrivateKey,
-		Passphrase: *flagPassphrase,
+		PrivateKey: *sshKey,
+		Passphrase: *sshPassphrase,
 	}
-	c := newNetconf(auth)
+	netconf := newNetconf(auth)
 
-	// Get all the switch hostnames.
-	log.Infof("Fetching switch hostnames for project %s", *flagProject)
-	sites, err := sites(*flagProject)
-	rtx.Must(err, "Cannot fetch the switch list")
+	collectorHandler = collector.NewHandler(*project, netconf)
 
-	// TODO: Here we should start a Prometheus instance and check the configs
-	// only when the /metrics endpoint is called, caching as long as we deem
-	// necessary (e.g. 24 hours.)
+	// Create an in-memory cache to avoid connecting to a switch too often.
 	//
-	// For now, the check only happens once.
+	// Assuming we have enough capacity to keep all the responses in the cache,
+	// the choice of eviction algorithm does not really make a difference.
+	//
+	// If we don't have enough capacity to keep all the responses in memory:
+	//
+	//   - By using MRU, the first capacity - 1 responses will be re-used for
+	//     24 hours and switches - capacity + 1 new SSH connections will be
+	//     made.
+	//   - By using LRU, all the SSH connections will be made each time.
+	//
+	// Both conditions are very undesirable and we should make sure
+	// capacity > switches at all times. However, using MRU significantly
+	// limits the impact when this does not hold true anymore.
 
-	checkAll(c, sites)
+	memcache, err := memory.NewAdapter(
+		memory.AdapterWithAlgorithm(memory.MRU),
+		memory.AdapterWithCapacity(*cacheCapacity),
+	)
+	rtx.Must(err, "Cannot initialize in-memory cache.")
+
+	cacheClient, err := cache.NewClient(
+		cache.ClientWithAdapter(memcache),
+		cache.ClientWithTTL(*cacheTTL),
+	)
+	rtx.Must(err, "Cannot initialize in-memory cache client.")
+
+	collectorHandler = cacheClient.Middleware(collectorHandler)
+
+	mux := http.NewServeMux()
+	mux.Handle("/v1/check", collectorHandler)
+
+	s := makeHTTPServer(mux)
+
+	rtx.Must(httpx.ListenAndServeAsync(s), "Could not start HTTP server")
+	defer s.Close()
+
+	// Keep serving until the context is canceled.
+	<-ctx.Done()
 }
 
-func checkAll(c internal.NetconfClient, sites []string) {
-	for _, site := range sites {
-		hostname := fmt.Sprintf(switchHostFormat, site)
-		conf, err := c.GetConfig(hostname)
-		if err != nil {
-			// TODO: expose this error as a Prometheus metric.
-			log.WithFields(log.Fields{
-				"site": site,
-			}).WithError(err).Error("Connection failed")
-			continue
-		}
-
-		// Get the archived config from GCS.
-		url, err := url.Parse(fmt.Sprintf(
-			"gs://switch-config-%s/configs/current/%s.conf",
-			*flagProject, site))
-		rtx.Must(err, "Cannot create URL for site %s", site)
-
-		prov, err := configFromURL(context.Background(), url)
-		rtx.Must(err, "Cannot create GCS provider for site %", site)
-
-		archived, err := prov.Get(context.Background())
-		if err != nil {
-			log.WithFields(log.Fields{
-				"site": site,
-			}).WithError(err).Error("Cannot retrieve archived config")
-			continue
-		}
-
-		if !netconf.Compare(conf, string(archived)) {
-			log.WithFields(log.Fields{
-				"site": site,
-			}).Warn("Current and archived configuration for %s do not match.")
-		}
+func makeHTTPServer(h http.Handler) *http.Server {
+	return &http.Server{
+		Addr:    *listenAddr,
+		Handler: h,
 	}
-}
-
-// sites downloads the switches.json file from siteinfo and generates a
-// list of sites.
-func sites(projectID string) ([]string, error) {
-	client := siteinfo.New(projectID, "v1", httpClient(httpClientTimeout))
-	switches, err := client.Switches()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(switches) == 0 {
-		return nil, fmt.Errorf("the retrieved switches list is empty")
-	}
-
-	sitesList := make([]string, len(switches))
-
-	i := 0
-	for k := range switches {
-		sitesList[i] = k
-		i++
-	}
-
-	return sitesList, nil
 }
