@@ -66,6 +66,19 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Provider:  provider,
 	}
 
+	// This collector depends on external parameters (target) and only returns
+	// one metric. This is not how custom collectors usually work.
+	// To make it possible we create a new Collector that only collects metrics
+	// for the requested targets every time, and we create a new Registry,
+	// register this temporary Collector and let Prometheus write the response.
+	//
+	// A possible alternative approach that was considered is having a single
+	// /metrics endpoint that, when called, checked every switch on the
+	// platform and returned metrics for all of them. However, this would easily
+	// exceed Prometheus' scraping time, would imply an additional dependency on
+	// siteinfo (to fetch the current switches.json) and would not benefit from
+	// the randomized scraping interval Prometheus implements.
+
 	registry := prometheus.NewRegistry()
 	collector := New(target, config)
 	registry.MustRegister(collector)

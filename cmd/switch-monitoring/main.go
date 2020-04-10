@@ -9,7 +9,6 @@ import (
 
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/text"
-	"github.com/goji/httpauth"
 	"github.com/scottdware/go-junos"
 	cache "github.com/victorspringer/http-cache"
 	"github.com/victorspringer/http-cache/adapter/memory"
@@ -26,9 +25,10 @@ const (
 	defaultListenAddr = ":8080"
 	defaultProjectID  = "mlab-sandbox"
 
-	switchHostFormat = "s1.%s.measurement-lab.org"
-	siteinfoVersion  = "v1"
-
+	// TODO: use v2 hostnames once they are available.
+	// (https://github.com/m-lab/siteinfo/issues/134)
+	switchHostFormat  = "s1.%s.measurement-lab.org"
+	siteinfoVersion   = "v1"
 	httpClientTimeout = time.Second * 15
 
 	// The default cache capacity has been chosen based on the current amount
@@ -39,24 +39,21 @@ const (
 )
 
 var (
-	listenAddr  = flag.String("listenaddr", defaultListenAddr, "Address to listen on")
-	flagProject = flag.String("project", defaultProjectID,
+	listenAddr = flag.String("listenaddr", defaultListenAddr, "Address to listen on")
+	project    = flag.String("project", defaultProjectID,
 		"Use a specific GCP Project ID.")
 
-	flagPrivateKey = flag.String("ssh.key", "",
+	sshKey = flag.String("ssh.key", "",
 		"Path to the SSH private key to use.")
-	flagPassphrase = flag.String("ssh.passphrase", "",
+	sshPassphrase = flag.String("ssh.passphrase", "",
 		"Passphrase to decrypt the private key. Can be omitted.")
 
-	flagUsername = flag.String("auth.username", "", "Username for HTTP basic auth")
-	flagPassword = flag.String("auth.password", "", "Password for HTTP basic auth")
-
-	flagCacheCapacity = flag.Int("collector.cache-capacity", defaultCacheCapacity,
+	cacheCapacity = flag.Int("collector.cache-capacity", defaultCacheCapacity,
 		"Maximum # of cached responses for the /check endpoint")
-	flagCacheTTL = flag.Duration("collector.cache-ttl", defaultCacheTTL,
+	cacheTTL = flag.Duration("collector.cache-ttl", defaultCacheTTL,
 		"TTL of cached responses for the /check endpoint")
 
-	flagDebug = flag.Bool("debug", true, "Show debug messages.")
+	debug = flag.Bool("debug", true, "Show debug messages.")
 
 	// Context for the whole program.
 	ctx, cancel = context.WithCancel(context.Background())
@@ -73,7 +70,7 @@ func main() {
 
 	flag.Parse()
 
-	if *flagDebug {
+	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
 	log.SetHandler(text.New(os.Stdout))
@@ -81,7 +78,7 @@ func main() {
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Cannot parse env args")
 
 	// A private key must be provided.
-	if *flagPrivateKey == "" {
+	if *sshKey == "" {
 		log.Error("The SSH private key must be provided.")
 		osExit(1)
 	}
@@ -89,8 +86,8 @@ func main() {
 	// Initialize Siteinfo provider and the NETCONF client.
 	auth := &junos.AuthMethod{
 		Username:   "root",
-		PrivateKey: *flagPrivateKey,
-		Passphrase: *flagPassphrase,
+		PrivateKey: *sshKey,
+		Passphrase: *sshPassphrase,
 	}
 	netconf := newNetconf(auth)
 
@@ -114,30 +111,17 @@ func main() {
 
 	memcache, err := memory.NewAdapter(
 		memory.AdapterWithAlgorithm(memory.MRU),
-		memory.AdapterWithCapacity(*flagCacheCapacity),
+		memory.AdapterWithCapacity(*cacheCapacity),
 	)
 	rtx.Must(err, "Cannot initialize in-memory cache.")
 
 	cacheClient, err := cache.NewClient(
 		cache.ClientWithAdapter(memcache),
-		cache.ClientWithTTL(*flagCacheTTL),
+		cache.ClientWithTTL(*cacheTTL),
 	)
 	rtx.Must(err, "Cannot initialize in-memory cache client.")
 
 	collectorHandler = cacheClient.Middleware(collectorHandler)
-
-	if *flagUsername != "" && *flagPassword != "" {
-		authOpts := httpauth.AuthOptions{
-			Realm:    "switch-monitoring",
-			User:     *flagUsername,
-			Password: *flagPassword,
-		}
-		collectorHandler = httpauth.BasicAuth(authOpts)(collectorHandler)
-	} else {
-		log.Warn("Username and password have not been specified!")
-		log.Warn("Make sure you add -auth.username and -auth.password before " +
-			"running in production.")
-	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/v1/check", collectorHandler)
