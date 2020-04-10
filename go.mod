@@ -12,4 +12,5 @@ require (
 	github.com/prometheus/client_golang v1.3.0
 	github.com/scottdware/go-junos v0.0.0-20191101184514-da1ec4631b03
 	github.com/stretchr/testify v1.5.1
+	github.com/victorspringer/http-cache v0.0.0-20190721184638-fe78e97af707
 )

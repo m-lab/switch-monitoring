@@ -10,6 +10,8 @@ import (
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/text"
 	"github.com/scottdware/go-junos"
+	cache "github.com/victorspringer/http-cache"
+	"github.com/victorspringer/http-cache/adapter/memory"
 
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/httpx"
@@ -28,6 +30,12 @@ const (
 	switchHostFormat  = "s1.%s.measurement-lab.org"
 	siteinfoVersion   = "v1"
 	httpClientTimeout = time.Second * 15
+
+	// The default cache capacity has been chosen based on the current amount
+	// of switches on the platform, plus some significant headroom for future
+	// expansion.
+	defaultCacheCapacity = 250
+	defaultCacheTTL      = 24 * time.Hour
 )
 
 var (
@@ -39,6 +47,11 @@ var (
 		"Path to the SSH private key to use.")
 	sshPassphrase = flag.String("ssh.passphrase", "",
 		"Passphrase to decrypt the private key. Can be omitted.")
+
+	cacheCapacity = flag.Int("collector.cache-capacity", defaultCacheCapacity,
+		"Maximum # of cached responses for the /check endpoint")
+	cacheTTL = flag.Duration("collector.cache-ttl", defaultCacheTTL,
+		"TTL of cached responses for the /check endpoint")
 
 	debug = flag.Bool("debug", true, "Show debug messages.")
 
@@ -78,7 +91,37 @@ func main() {
 	}
 	netconf := newNetconf(auth)
 
-	collectorHandler = collector.NewHandler(*project, netconf)
+	collectorHandler = collector.NewHandler(*flagProject, netconf)
+
+	// Create an in-memory cache to avoid connecting to a switch too often.
+	//
+	// Assuming we have enough capacity to keep all the responses in the cache,
+	// the choice of eviction algorithm does not really make a difference.
+	//
+	// If we don't have enough capacity to keep all the responses in memory:
+	//
+	//   - By using MRU, the first capacity - 1 responses will be re-used for
+	//     24 hours and switches - capacity + 1 new SSH connections will be
+	//     made.
+	//   - By using LRU, all the SSH connections will be made each time.
+	//
+	// Both conditions are very undesirable and we should make sure
+	// capacity > switches at all times. However, using MRU significantly
+	// limits the impact when this does not hold true anymore.
+
+	memcache, err := memory.NewAdapter(
+		memory.AdapterWithAlgorithm(memory.MRU),
+		memory.AdapterWithCapacity(*cacheCapacity),
+	)
+	rtx.Must(err, "Cannot initialize in-memory cache.")
+
+	cacheClient, err := cache.NewClient(
+		cache.ClientWithAdapter(memcache),
+		cache.ClientWithTTL(*cacheTTL),
+	)
+	rtx.Must(err, "Cannot initialize in-memory cache client.")
+
+	collectorHandler = cacheClient.Middleware(collectorHandler)
 
 	mux := http.NewServeMux()
 	mux.Handle("/v1/check", collectorHandler)
