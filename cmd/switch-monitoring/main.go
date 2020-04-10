@@ -91,7 +91,7 @@ func main() {
 	}
 	netconf := newNetconf(auth)
 
-	collectorHandler = collector.NewHandler(*flagProject, netconf)
+	collectorHandler = collector.NewHandler(*project, netconf)
 
 	// Create an in-memory cache to avoid connecting to a switch too often.
 	//
