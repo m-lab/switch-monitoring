@@ -90,7 +90,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // getProviderForConfig initializes a content.Provider for the specified site.
 func (h *Handler) getProviderForConfig(site string) (content.Provider, error) {
 	url, err := parseURL(
-		fmt.Sprintf("gs://switch-config-%s/configs/latest/%s.conf",
+		fmt.Sprintf("gs://switch-config-%s/configs/current/%s.conf",
 			h.projectID, site),
 	)
 	if err != nil {
@@ -108,14 +108,14 @@ func (h *Handler) getProviderForConfig(site string) (content.Provider, error) {
 // getSite returns the site name from a FQDN like
 // s1.<site>.measurement-lab.org.
 func getSite(hostname string) (string, error) {
-	re := regexp.MustCompile(`s1\.([a-zA-Z]{3}[0-9]{2}).*`)
+	re := regexp.MustCompile(`s1\.([a-z]{3}[0-9ct]{2}).*`)
 	res := re.FindStringSubmatch(hostname)
 	if len(res) != 2 {
 		return "", fmt.Errorf("cannot extract site from hostname: %s",
 			hostname)
 	}
 
-	return res[0], nil
+	return res[1], nil
 }
 
 // writeError writes an error on the provided ResponseWriter and logs it.
