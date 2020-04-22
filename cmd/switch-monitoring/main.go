@@ -24,6 +24,7 @@ import (
 const (
 	defaultListenAddr = ":8080"
 	defaultProjectID  = "mlab-sandbox"
+	defaultSSHUser    = "switch-monitoring"
 
 	// TODO: use v2 hostnames once they are available.
 	// (https://github.com/m-lab/siteinfo/issues/134)
@@ -43,6 +44,8 @@ var (
 	project    = flag.String("project", defaultProjectID,
 		"Use a specific GCP Project ID.")
 
+	sshUsername = flag.String("ssh.username", defaultSSHUser,
+		"Username to use.")
 	sshKey = flag.String("ssh.key", "",
 		"Path to the SSH private key to use.")
 	sshPassphrase = flag.String("ssh.passphrase", "",
@@ -85,7 +88,7 @@ func main() {
 
 	// Initialize Siteinfo provider and the NETCONF client.
 	auth := &junos.AuthMethod{
-		Username:   "root",
+		Username:   *sshUsername,
 		PrivateKey: *sshKey,
 		Passphrase: *sshPassphrase,
 	}
