@@ -88,7 +88,7 @@ func main() {
 
 	// Initialize Siteinfo provider and the NETCONF client.
 	auth := &junos.AuthMethod{
-		Username:   "root",
+		Username:   *sshUsername,
 		PrivateKey: *sshKey,
 		Passphrase: *sshPassphrase,
 	}
