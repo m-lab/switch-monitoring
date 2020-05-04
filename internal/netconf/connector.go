@@ -2,11 +2,14 @@ package netconf
 
 import (
 	"errors"
+	"time"
 
 	"github.com/Juniper/go-netconf/netconf"
 	"github.com/scottdware/go-junos"
 	"golang.org/x/crypto/ssh"
 )
+
+const defaultTimeout = 15 * time.Second
 
 var newSession = junos.NewSessionWithConfig
 
@@ -34,6 +37,7 @@ func (junosConnector) NewSession(host string, auth *junos.AuthMethod) (connectio
 		return nil, err
 	}
 
+	config.Timeout = defaultTimeout
 	config.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 
 	// This matches the only two key exchange algorithm we use on our switches.
