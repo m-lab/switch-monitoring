@@ -38,6 +38,11 @@ func (junosConnector) NewSession(host string, auth *junos.AuthMethod) (connectio
 	}
 
 	config.Timeout = defaultTimeout
+
+	// Every time the switch is rebooted, a new host key is generated.
+	// Since we don't have any mean to track host key changes at the moment,
+	// and we don't know which key is the "correct" one, we do not check the
+	// key here.
 	config.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 
 	// This matches the only two key exchange algorithm we use on our switches.
