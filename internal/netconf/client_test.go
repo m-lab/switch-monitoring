@@ -26,7 +26,7 @@ type mockConnection struct {
 	mustFail bool
 }
 
-func (c mockConnection) GetConfig(string, ...string) (string, error) {
+func (c *mockConnection) GetConfig(string, ...string) (string, error) {
 	if c.mustFail {
 		return "", fmt.Errorf("error")
 	}
@@ -37,6 +37,10 @@ func (c mockConnection) GetConfig(string, ...string) (string, error) {
 		return "", err
 	}
 	return string(testfile), nil
+}
+
+func (c *mockConnection) Close() {
+	// not implemented.
 }
 
 func TestNew(t *testing.T) {
