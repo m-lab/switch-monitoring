@@ -18,6 +18,7 @@ var newSession = junos.NewSessionWithConfig
 
 type connection interface {
 	GetConfig(string, ...string) (string, error)
+	Close()
 }
 
 type connector interface {

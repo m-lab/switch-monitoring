@@ -27,6 +27,7 @@ func (c Client) GetConfig(hostname string, section ...string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer jnpr.Close()
 
 	config, err := jnpr.GetConfig("text", section...)
 	if err != nil {
