@@ -108,7 +108,7 @@ func (h *Handler) getProviderForConfig(site string) (content.Provider, error) {
 // getSite returns the site name from a FQDN like
 // s1.<site>.measurement-lab.org.
 func getSite(hostname string) (string, error) {
-	re := regexp.MustCompile(`s1\.([a-z]{3}[0-9ct]{2}).*`)
+	re := regexp.MustCompile(`s1(?:\.|-)([a-z]{3}[0-9ct]{2}).*`)
 	res := re.FindStringSubmatch(hostname)
 	if len(res) != 2 {
 		return "", fmt.Errorf("cannot extract site from hostname: %s",

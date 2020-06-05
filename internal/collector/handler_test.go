@@ -42,6 +42,15 @@ func TestHandler_ServeHTTP(t *testing.T) {
 `,
 		},
 		{
+			name: "ok-configs-match-v2-hostname",
+			r: httptest.NewRequest("GET",
+				"/v1/check?target=s1-abc01.measurement-lab.org", nil),
+			status: http.StatusOK,
+			body: metadata + `switch_monitoring_config_match{status="ok",` +
+				`target="s1-abc01.measurement-lab.org"} 1
+`,
+		},
+		{
 			name:   "method-not-allowed",
 			r:      httptest.NewRequest("POST", "/v1/check", nil),
 			status: http.StatusMethodNotAllowed,
