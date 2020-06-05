@@ -33,15 +33,6 @@ func TestHandler_ServeHTTP(t *testing.T) {
 		getConfigMustFail bool
 	}{
 		{
-			name: "ok-configs-match",
-			r: httptest.NewRequest("GET",
-				"/v1/check?target=s1.abc01.measurement-lab.org", nil),
-			status: http.StatusOK,
-			body: metadata + `switch_monitoring_config_match{status="ok",` +
-				`target="s1.abc01.measurement-lab.org"} 1
-`,
-		},
-		{
 			name: "ok-configs-match-v2-hostname",
 			r: httptest.NewRequest("GET",
 				"/v1/check?target=s1-abc01.measurement-lab.org", nil),
@@ -69,7 +60,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 		},
 		{
 			name:              "failure-getting-content-provider",
-			r:                 httptest.NewRequest("GET", "/v1/check?target=s1.abc01", nil),
+			r:                 httptest.NewRequest("GET", "/v1/check?target=s1-abc01", nil),
 			status:            http.StatusInternalServerError,
 			getConfigMustFail: true,
 		},
