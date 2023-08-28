@@ -1,4 +1,4 @@
-FROM golang:1.13 as build
+FROM golang:1.20 as build
 ENV CGO_ENABLED 0
 ADD . /go/src/github.com/m-lab/switch-monitoring
 WORKDIR /go/src/github.com/m-lab/switch-monitoring/cmd/switch-monitoring
