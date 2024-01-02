@@ -31,13 +31,11 @@ type netconfProvider struct {
 	fail     bool
 }
 
-func (n *netconfProvider) GetConfig(hostname string, sections ...string) (string, error) {
+func (n *netconfProvider) CompareConfig(hostname string, expected string) (bool, error) {
 	if n.fail {
-		return "", fmt.Errorf("GetConfig error")
+		return false, fmt.Errorf("GetConfig error")
 	}
-	content, err := ioutil.ReadFile(n.filepath)
-	rtx.Must(err, "Cannot read test data")
-	return string(content), nil
+	return true, nil
 }
 
 func TestNew(t *testing.T) {

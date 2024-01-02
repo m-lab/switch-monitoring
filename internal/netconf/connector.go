@@ -18,7 +18,6 @@ var newSession = junos.NewSessionWithConfig
 
 type connection interface {
 	Config(interface{}, string, bool) error
-	GetConfig(string, ...string) (string, error)
 	Diff(int) (string, error)
 	Close()
 }

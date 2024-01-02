@@ -54,7 +54,16 @@ func (c *ConfigCheckerCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	if !c.config.Netconf.CompareConfig(c.target, string(expected)) {
+	ok, err := c.config.Netconf.CompareConfig(c.target, string(expected))
+	if err != nil {
+		log.WithFields(log.Fields{"target": c.target}).WithError(err).Error(
+			"Cannot compare config from GCS with config from switch")
+		ch <- prometheus.MustNewConstMetric(c.result, prometheus.GaugeValue, 1,
+			c.target, configNotFoundSwitch)
+		return
+	}
+
+	if !ok {
 		log.WithFields(log.Fields{"target": c.target}).Warn(
 			"Switch configuration is different from the archived one.")
 		ch <- prometheus.MustNewConstMetric(c.result, prometheus.GaugeValue, 1,

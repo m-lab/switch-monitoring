@@ -1,16 +1,17 @@
 package netconf
 
 import (
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"testing"
 
 	"github.com/scottdware/go-junos"
 )
 
 type mockConnector struct {
-	mustFail     bool
-	mustFailConn bool
+	mustFail       bool
+	mustFailConfig bool
+	mustFailDiff   bool
 }
 
 func (c mockConnector) NewSession(string, *junos.AuthMethod) (connection, error) {
@@ -18,25 +19,30 @@ func (c mockConnector) NewSession(string, *junos.AuthMethod) (connection, error)
 		return nil, fmt.Errorf("error")
 	}
 	return &mockConnection{
-		mustFail: c.mustFailConn,
+		mustFailConfig: c.mustFailConfig,
+		mustFailDiff:   c.mustFailDiff,
 	}, nil
 }
 
 type mockConnection struct {
-	mustFail bool
+	mustFailConfig bool
+	mustFailDiff   bool
 }
 
-func (c *mockConnection) GetConfig(string, ...string) (string, error) {
-	if c.mustFail {
-		return "", fmt.Errorf("error")
+func (c *mockConnection) Config(interface{}, string, bool) error {
+	if c.mustFailConfig {
+		return errors.New("error")
 	}
 
-	// Read test file.
-	testfile, err := ioutil.ReadFile("testdata/abc01.conf")
-	if err != nil {
-		return "", err
+	return nil
+}
+
+func (c *mockConnection) Diff(int) (string, error) {
+	if c.mustFailDiff {
+		return "", errors.New("error")
 	}
-	return string(testfile), nil
+
+	return "", nil
 }
 
 func (c *mockConnection) Close() {
@@ -49,36 +55,4 @@ func TestNew(t *testing.T) {
 	if netconf.auth != auth {
 		t.Errorf("New() didn't return the expected struct.")
 	}
-}
-
-func TestClient_GetConfigHash(t *testing.T) {
-	mockConnector := &mockConnector{}
-	netconf := &Client{
-		auth:      &junos.AuthMethod{},
-		connector: mockConnector,
-	}
-
-	res, err := netconf.GetConfig("test")
-	if err != nil {
-		t.Errorf("GetConfig(): expected nil, got %v", err)
-	}
-	if len(res) == 0 {
-		t.Errorf("GetConfig(): len(config) is zero.")
-	}
-
-	// Let the connector fail.
-	mockConnector.mustFail = true
-	_, err = netconf.GetConfig("test")
-	if err == nil {
-		t.Errorf("GetConfig(): expected err, got nil.")
-	}
-	mockConnector.mustFail = false
-
-	// Let connection.GetConfig() fail.
-	mockConnector.mustFailConn = true
-	_, err = netconf.GetConfig("test")
-	if err == nil {
-		t.Errorf("GetConfig(): expected err, got nil.")
-	}
-
 }

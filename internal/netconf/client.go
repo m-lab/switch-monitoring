@@ -21,26 +21,27 @@ func New(auth *junos.AuthMethod) Client {
 	}
 }
 
-func (c Client) CompareConfig(hostname, config string) error {
+func (c Client) CompareConfig(hostname, config string) (bool, error) {
 	jnpr, err := c.connector.NewSession(hostname, c.auth)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer jnpr.Close()
 
 	// Attempt to apply the provided config without committing.
 	err = jnpr.Config(config, "text", false)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	diff, err := jnpr.Diff(0)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	fmt.Println("DIFF:")
 	fmt.Println(diff)
 
-	return nil
+	// TODO: check diff content.
+	return true, nil
 }
