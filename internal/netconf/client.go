@@ -1,6 +1,8 @@
 package netconf
 
 import (
+	"fmt"
+
 	"github.com/scottdware/go-junos"
 )
 
@@ -19,20 +21,26 @@ func New(auth *junos.AuthMethod) Client {
 	}
 }
 
-// GetConfig connects to a switch, reads the specified configuration section
-// and returns its content. The section can be an empty string. In that case,
-// the whole configuration will be read.
-func (c Client) GetConfig(hostname string, section ...string) (string, error) {
+func (c Client) CompareConfig(hostname, config string) error {
 	jnpr, err := c.connector.NewSession(hostname, c.auth)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer jnpr.Close()
 
-	config, err := jnpr.GetConfig("text", section...)
+	// Attempt to apply the provided config without committing.
+	err = jnpr.Config(config, "text", false)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	return config, nil
+	diff, err := jnpr.Diff(0)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("DIFF:")
+	fmt.Println(diff)
+
+	return nil
 }
