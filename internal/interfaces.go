@@ -8,7 +8,7 @@ import (
 
 // NetconfClient is a generic NETCONF client.
 type NetconfClient interface {
-	GetConfig(hostname string, section ...string) (string, error)
+	CompareConfig(hostname string, config string) (bool, error)
 }
 
 // HTTPProvider is a data provider returning HTTP responses.

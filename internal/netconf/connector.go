@@ -17,7 +17,10 @@ var newSession = junos.NewSessionWithConfig
 // connection to a NETCONF-enabled device, so that they can be unit tested.
 
 type connection interface {
-	GetConfig(string, ...string) (string, error)
+	Config(interface{}, string, bool) error
+	Diff(int) (string, error)
+	Lock() error
+	Unlock() error
 	Close()
 }
 

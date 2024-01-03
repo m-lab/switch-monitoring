@@ -6,7 +6,6 @@ import (
 	"github.com/apex/log"
 	"github.com/m-lab/go/content"
 	"github.com/m-lab/switch-monitoring/internal"
-	"github.com/m-lab/switch-monitoring/internal/netconf"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -15,6 +14,7 @@ const (
 	configNotFoundSwitch = "config_not_found_switch"
 	configMismatch       = "config_mismatch"
 	configMatches        = "ok"
+	configApplyFailed    = "config_apply_failed"
 )
 
 type Config struct {
@@ -54,23 +54,22 @@ func (c *ConfigCheckerCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	// Fetch the actual config from the switch.
-	actual, err := c.config.Netconf.GetConfig(c.target)
+	ok, err := c.config.Netconf.CompareConfig(c.target, string(expected))
 	if err != nil {
 		log.WithFields(log.Fields{"target": c.target}).WithError(err).Error(
-			"Cannot fetch config from the switch")
+			"Cannot compare config from GCS with config from switch")
 		ch <- prometheus.MustNewConstMetric(c.result, prometheus.GaugeValue, 1,
 			c.target, configNotFoundSwitch)
 		return
 	}
 
-	// Compare them.
-	if !netconf.Compare(string(expected), actual) {
+	if !ok {
 		log.WithFields(log.Fields{"target": c.target}).Warn(
-			"Switch configuration is different than the archived one.")
+			"Switch configuration is different from the archived one.")
 		ch <- prometheus.MustNewConstMetric(c.result, prometheus.GaugeValue, 1,
 			c.target, configMismatch)
 		return
+
 	}
 
 	ch <- prometheus.MustNewConstMetric(c.result, prometheus.GaugeValue, 1,

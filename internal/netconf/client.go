@@ -1,8 +1,14 @@
 package netconf
 
 import (
+	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/scottdware/go-junos"
 )
+
+var encPasswordRegex = regexp.MustCompile(`(?m)^.*(encrypted-password|\[edit).*$`)
 
 // Client is a client to get the switch configuration using the
 // NETCONF protocol.
@@ -19,20 +25,41 @@ func New(auth *junos.AuthMethod) Client {
 	}
 }
 
-// GetConfig connects to a switch, reads the specified configuration section
-// and returns its content. The section can be an empty string. In that case,
-// the whole configuration will be read.
-func (c Client) GetConfig(hostname string, section ...string) (string, error) {
+func (c Client) CompareConfig(hostname, config string) (bool, error) {
 	jnpr, err := c.connector.NewSession(hostname, c.auth)
 	if err != nil {
-		return "", err
+		return false, err
 	}
 	defer jnpr.Close()
 
-	config, err := jnpr.GetConfig("text", section...)
+	err = jnpr.Lock()
 	if err != nil {
-		return "", err
+		fmt.Println(err)
+		return false, err
+	}
+	defer jnpr.Unlock()
+
+	err = jnpr.Config(config, "text", false)
+	if err != nil {
+		return false, err
 	}
 
-	return config, nil
+	diff, err := jnpr.Diff(0)
+	if err != nil {
+		return false, err
+	}
+
+	diff = cleanDiff(diff)
+
+	if diff != "" {
+		fmt.Printf("Diff for %s:\n%s\n", hostname, diff)
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func cleanDiff(diff string) string {
+	s := encPasswordRegex.ReplaceAllString(diff, "")
+	return strings.Trim(s, "\n")
 }
