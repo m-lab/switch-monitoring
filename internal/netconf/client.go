@@ -2,9 +2,13 @@ package netconf
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/scottdware/go-junos"
 )
+
+var encPasswordRegex = regexp.MustCompile(`(?m)^.*(encrypted-password|\[edit).*$`)
 
 // Client is a client to get the switch configuration using the
 // NETCONF protocol.
@@ -28,7 +32,13 @@ func (c Client) CompareConfig(hostname, config string) (bool, error) {
 	}
 	defer jnpr.Close()
 
-	// Attempt to apply the provided config without committing.
+	err = jnpr.Lock()
+	if err != nil {
+		fmt.Println(err)
+		return false, err
+	}
+	defer jnpr.Unlock()
+
 	err = jnpr.Config(config, "text", false)
 	if err != nil {
 		return false, err
@@ -39,9 +49,17 @@ func (c Client) CompareConfig(hostname, config string) (bool, error) {
 		return false, err
 	}
 
-	fmt.Println("DIFF:")
-	fmt.Println(diff)
+	diff = cleanDiff(diff)
 
-	// TODO: check diff content.
+	if diff != "" {
+		fmt.Printf("Diff for %s:\n%s\n", hostname, diff)
+		return false, nil
+	}
+
 	return true, nil
+}
+
+func cleanDiff(diff string) string {
+	s := encPasswordRegex.ReplaceAllString(diff, "")
+	return strings.Trim(s, "\n")
 }

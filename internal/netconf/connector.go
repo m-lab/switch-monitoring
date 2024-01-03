@@ -19,6 +19,8 @@ var newSession = junos.NewSessionWithConfig
 type connection interface {
 	Config(interface{}, string, bool) error
 	Diff(int) (string, error)
+	Lock() error
+	Unlock() error
 	Close()
 }
 
